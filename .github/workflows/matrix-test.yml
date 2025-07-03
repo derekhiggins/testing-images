@@ -1,0 +1,142 @@
+name: Matrix Test - Machine Information
+
+on:
+  push:
+    branches: [ main, master, ntsh ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  matrix-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        I: [1, 2, 3, 4]
+        X: [1, 2]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Print Job Information
+      run: |
+        echo "=== Job Information ==="
+        echo "Matrix value I,X: ${{ matrix.I }},${{ matrix.X }}"
+        echo "Job number: ${{ strategy.job-index }}"
+        echo "Total jobs: ${{ strategy.job-total }}"
+        echo ""
+    
+    - name: Print System Information
+      run: |
+        echo "=== System Information ==="
+        echo "Hostname: $(hostname)"
+        echo "Operating System: $(uname -a)"
+        echo "Distribution: $(lsb_release -a 2>/dev/null || cat /etc/os-release | head -5)"
+        echo "Kernel: $(uname -r)"
+        echo "Architecture: $(uname -m)"
+        echo ""
+    
+    - name: Print Hardware Information
+      run: |
+        echo "=== Hardware Information ==="
+        echo "CPU Information:"
+        cat /proc/cpuinfo | grep -E "model name|cpu cores|siblings" | head -3
+        echo ""
+        echo "Memory Information:"
+        free -h
+        echo ""
+        echo "Disk Information:"
+        df -h / | tail -n 1
+        echo ""
+    
+    - name: Print Network Information
+      run: |
+        echo "=== Network Information ==="
+        echo "IP Address: $(hostname -I | awk '{print $1}')"
+        echo "Network interfaces:"
+        ip addr show | grep -E "^[0-9]+:|inet " | head -10
+        echo ""
+        echo "MAC Addresses:"
+        ip link show | grep -E "link/ether|^\d+:" | grep -A1 "^\d+:" | grep "link/ether" | awk '{print $2}' | sort
+        echo ""
+        echo "All network interface details:"
+        cat /sys/class/net/*/address 2>/dev/null | sort | uniq
+        echo ""
+    
+    - name: Print Environment Information
+      run: |
+        echo "=== Environment Information ==="
+        echo "GitHub Runner: ${{ runner.name }}"
+        echo "GitHub Runner OS: ${{ runner.os }}"
+        echo "GitHub Runner Arch: ${{ runner.arch }}"
+        echo "GitHub Runner Temp: ${{ runner.temp }}"
+        echo "GitHub Runner Tool Cache: ${{ runner.tool_cache }}"
+        echo "GitHub Workspace: ${{ github.workspace }}"
+        echo "Current user: $(whoami)"
+        echo "Current directory: $(pwd)"
+        echo "Environment variables (filtered):"
+        env | grep -E "^(GITHUB_|RUNNER_|CI)" | sort | head -10
+        echo ""
+    
+    - name: Test Machine Uniqueness with File Creation
+      run: |
+        echo "=== Machine Uniqueness Test ==="
+        
+        # Create a unique file for this job
+        UNIQUE_FILE="/tmp/job_${{ matrix.I }}_${{ matrix.X }}_$(date +%s)_${{ github.run_id }}.txt"
+        JOB_MARKER="/tmp/job_${{ matrix.I }}_${{ matrix.X }}_marker.txt"
+
+        # List all files created by this workflow
+        echo ""
+        echo "All workflow-related files in /tmp/:"
+        ls -la /tmp/job_* 2>/dev/null || echo "No workflow files found"
+            
+        
+        echo "Creating unique file: $UNIQUE_FILE"
+        echo "Job ${{ matrix.I }} was here at $(date)" > "$UNIQUE_FILE"
+        echo "Run ID: ${{ github.run_id }}" >> "$UNIQUE_FILE"
+        echo "Hostname: $(hostname)" >> "$UNIQUE_FILE"
+        echo "Process ID: $$" >> "$UNIQUE_FILE"
+        
+        # Create a job marker file
+        echo "Creating job marker: $JOB_MARKER"
+        echo "Job ${{ matrix.I }} marker created at $(date)" > "$JOB_MARKER"
+                
+        echo ""
+    
+    - name: Print System Identifiers
+      run: |
+        echo "=== System Identifiers ==="
+        echo "Machine ID: $(cat /etc/machine-id 2>/dev/null || echo 'N/A')"
+        echo "Boot ID: $(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo 'N/A')"
+        echo "DMI Product UUID: $(sudo dmidecode -s system-uuid 2>/dev/null || echo 'N/A (no sudo)')"
+        echo "System uptime: $(uptime)"
+        echo "System boot time: $(who -b 2>/dev/null || echo 'N/A')"
+        echo ""
+        echo "Process tree for current shell:"
+        ps -o pid,ppid,cmd --forest -g $$ | head -10
+        echo ""
+    
+    - name: Print Unique Job Identifier
+      run: |
+        echo "=== Unique Job Identifier ==="
+        echo "This is job #${{ matrix.I }} of 4 total jobs"
+        echo "Job started at: $(date)"
+        echo "Job run ID: ${{ github.run_id }}"
+        echo "Job run number: ${{ github.run_number }}"
+        echo "Job attempt: ${{ github.run_attempt }}"
+        echo "================================="
+    
+    - name: Final Machine Fingerprint
+      run: |
+        echo "=== Final Machine Fingerprint ==="
+        echo "Hostname: $(hostname)"
+        echo "IP: $(hostname -I | awk '{print $1}')"
+        echo "Primary MAC: $(ip link show | grep -E "link/ether" | head -1 | awk '{print $2}')"
+        echo "Machine ID: $(cat /etc/machine-id 2>/dev/null || echo 'N/A')"
+        echo "Boot ID: $(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo 'N/A')"
+        echo "Process ID: $$"
+        echo "Job Matrix I: ${{ matrix.I }}"
+        echo "Timestamp: $(date)"
+        echo "=================================" 
